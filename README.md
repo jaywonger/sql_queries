@@ -1,2 +1,2 @@
 # sql_queries
-sql queries procura
+Create desktop users and clients for the Procura training database
