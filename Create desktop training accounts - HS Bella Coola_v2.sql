@@ -11,8 +11,6 @@
 	14-Sep-2021		Jason Wong				Added Error Handling
 	16-Sep-2021		Jason Wong				Updated Error Handling
 *********************************************************************/
-use VCHA_DEV2
-go
 /** Variables **/
 declare @empID varchar(14),
 		@lastName varchar(30),
@@ -48,29 +46,26 @@ begin
 	/** Employee Account Setup **/
 	begin try
 		insert into RESVIS  
-		select @empID,NULL,'S','F'
+		select top 1 @empID,NULL,'S','F'
 		from RESVIS
-		where RESVIS_ID <> @empID
-		and NOT EXISTS (select exclusionTbl.RESVIS_ID
-						from RESVIS exclusionTbl
-						where exclusionTbl.RESVIS_ID <> @empID)
+		where NOT EXISTS (select RESVIS_ID
+						  from RESVIS 
+						  where RESVIS_ID = @empID)
 
 		insert into RESOURCES  
-		select @empID,'E'
+		select top 1 @empID,'E'
 		from RESOURCES
-		where RES_ID <> @empID
-		and NOT EXISTS (select exclusionTbl.RES_ID
-						from RESOURCES exclusionTbl
-						where exclusionTbl.RES_ID <> @empID)
+		where NOT EXISTS (select RES_ID
+						  from RESOURCES 
+						  where RES_ID = @empID)
 
 		-- Create employee account
 		insert into EMPLOYEES (EMP_ID,LASTNAME,FIRSTNAME,AREA,IS_USER,INTAKEUSER,INTAKEDATE,INTAKETIME,CHGDATE,CHGUSER,TZID)
-		select @empID,@lastName,@firstName,'U*','T','ProcuraAdmin',GETDATE(),GETDATE(),GETDATE(),'ProcuraAdmin','America/Vancouver'
+		select top 1 @empID,@lastName,@firstName,'U*','T','ProcuraAdmin',GETDATE(),GETDATE(),GETDATE(),'ProcuraAdmin','America/Vancouver'
 		from EMPLOYEES
-		where EMP_ID <> @empID
-		and NOT EXISTS (select exclusionTbl.EMP_ID
-						from EMPLOYEES exclusionTbl
-						where exclusionTbl.EMP_ID <> @empID)
+		where NOT EXISTS (select EMP_ID
+						  from EMPLOYEES 
+						  where EMP_ID = @empID)
 	end try
 	begin catch
 		select ERROR_MESSAGE() AS ErrorMessage
@@ -80,7 +75,8 @@ begin
 	begin try
 		if not exists (select * from EMPLDEPT
 					   where EMP_ID = @empID
-					   and DEPT_ID = 'CGH792373270')
+					   and (DEPT_ID = 'CGH792373270'
+					   OR DEPT_ID = 'N0000000011'))
 		begin 
 			insert into EMPLDEPT (EMP_ID,DEPT_ID,STATUS,STARTDATE,DATE_IN,TIME_IN,USER_IN,SENSTART,INTAKEDATE,INTAKEUSER,CHGDATE,CHGUSER) values
 			(@empID,'CGH792373270','A',GETDATE(),GETDATE(),GETDATE(),'ProcuraAdmin',GETDATE(),GETDATE(),'ProcuraAdmin',GETDATE(),'ProcuraAdmin'),	-- HS Bella Coola
@@ -88,7 +84,7 @@ begin
 		end
 	end try
 	begin catch
-	select ERROR_MESSAGE() AS ErrorMessage
+		select ERROR_MESSAGE() AS ErrorMessage
 	end catch
 
 	
@@ -170,8 +166,8 @@ begin
 	begin try
 		if not exists (select * from RPTUSERFOLD
 					   where USER_ID = @empID
-					   and RFOLDER_ID = 1 OR RFOLDER_ID = 2 OR RFOLDER_ID = 3 OR RFOLDER_ID = 4 OR RFOLDER_ID = 5 OR RFOLDER_ID = 6 OR RFOLDER_ID = 7 OR RFOLDER_ID = 8
-					    OR RFOLDER_ID = 13)
+					   and (RFOLDER_ID = 1 OR RFOLDER_ID = 2 OR RFOLDER_ID = 3 OR RFOLDER_ID = 4 OR RFOLDER_ID = 5 OR RFOLDER_ID = 6 OR RFOLDER_ID = 7 OR RFOLDER_ID = 8
+					    OR RFOLDER_ID = 13))
 		begin
 			insert into RPTUSERFOLD values
 			(@empID,1,'F',GETDATE(),'ProcuraAdmin'),	-- Scheduling
@@ -193,8 +189,8 @@ begin
 	begin try
 		if not exists (select * from USERDEPT
 					   where USER_ID = @empID
-					   and DEPT_ID = 'CGH792373270'
-					   OR DEPT_ID = 'N0000000011')
+					   and (DEPT_ID = 'CGH792373270'
+					   OR DEPT_ID = 'N0000000011'))
 		begin
 			insert into USERDEPT values
 			(@empID,'CGH792373270',GETDATE(),'ProcuraAdmin'),	-- HS Bella Coola
@@ -224,12 +220,12 @@ begin
 		if not exists (select * from USERNOTES
 					   where USER_ID = @empID
 					   and DEPT_ID = 'CGH792373270'
-					   and TYPE_ID = 'N0000000018' OR TYPE_ID = 'N0000000017' OR TYPE_ID = 'N0000000016' OR TYPE_ID = 'N0000000003'
+					   and (TYPE_ID = 'N0000000018' OR TYPE_ID = 'N0000000017' OR TYPE_ID = 'N0000000016' OR TYPE_ID = 'N0000000003'
 					   OR TYPE_ID = 'N0000000019' OR TYPE_ID = 'N0000000010' OR TYPE_ID = 'N0000000012' OR TYPE_ID = 'N0000000014'
 					   OR TYPE_ID = 'N0000000005' OR TYPE_ID = 'Coas928962299' OR TYPE_ID = 'N0000000015' OR TYPE_ID = 'N0000000008'
 					   OR TYPE_ID = 'S860153481' OR TYPE_ID = 'NSH100015' OR TYPE_ID = 'N0000000020' OR TYPE_ID = 'S455526658'
 					   OR TYPE_ID = 'NSH100020' OR TYPE_ID = 'INV0001' OR TYPE_ID = 'N0000000009' OR TYPE_ID = 'S615050533'
-					   OR TYPE_ID = 'T0000000001' OR TYPE_ID = 'NSH100014' OR TYPE_ID = 'NSH100017' OR TYPE_ID = 'N0000000007')
+					   OR TYPE_ID = 'T0000000001' OR TYPE_ID = 'NSH100014' OR TYPE_ID = 'NSH100017' OR TYPE_ID = 'N0000000007'))
 		begin
 			insert into USERNOTES values
 			(@empID, 'CGH792373270', 'N0000000018', GETDATE(), 'ProcuraAdmin'),		-- Backup Plan
@@ -290,7 +286,9 @@ begin
 	from EMPSERVS
 	where not exists (select SERV_ID
 					  from EMPSERVS
-					  where SERV_ID = 'N0000010236')
+					  where SERV_ID = 'N0000010236'
+					  and EMP_ID = @empID
+					  and DEPT_ID = 'CGH792373270')
 	
 
 	exec pp_sys_get_next_id 'EMPSERVS', 1, @nextSyskey output
@@ -336,7 +334,9 @@ begin
 		if not exists (select * from CLNTRESORC
 					   where RES_ID = @empID
 					   and DEPT_ID = 'CGH792373270'
-					   and CLTVISITOR_ID = 'N0000013738')
+					   and (CLTVISITOR_ID = 'N0000013738' OR CLTVISITOR_ID = 'N0000013916' OR CLTVISITOR_ID = 'N0000012259' OR CLTVISITOR_ID = 'N0000009690'
+					   OR CLTVISITOR_ID = 'CGH192324907' OR CLTVISITOR_ID = 'N0000012894' OR CLTVISITOR_ID = 'N0000014798' OR CLTVISITOR_ID = 'T0000005476'
+					   OR CLTVISITOR_ID = 'T0000004894'))
 		begin
 			insert into CLNTRESORC (CLTVISITOR_ID, DEPT_ID, RES_ID, CODE, INTAKE, INTAKEUSER, CHGDATE, CHGUSER) values
 			('N0000013738', 'CGH792373270', @empID, 'Required', GETDATE(), 'ProcuraAdmin', GETDATE(), 'ProcuraAdmin'),
